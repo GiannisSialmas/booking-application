@@ -14,6 +14,9 @@ npm-debug.log*
 *.exe
 *.test
 
+# Env files (local secrets/overrides -- see .env.example)
+.env
+
 # Editors / OS
 .vscode/
 .idea/
