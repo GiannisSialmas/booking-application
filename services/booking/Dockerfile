@@ -15,14 +15,14 @@ ENV UV_COMPILE_BYTECODE=1 \
 # baked into the image) so rebuilds don't re-download unchanged deps.
 # The two type=bind mounts expose uv.lock/pyproject.toml to this RUN step
 # only, instead of a permanent COPY. That scopes this layer's cache key to
-# just those two files, so editing main.py alone (COPY'd below, as its own
+# just those two files, so editing app code alone (COPY'd below, as its own
 # layer) doesn't invalidate/re-run the dependency install -- same idea as the
 # classic Node "COPY package*.json, npm install, then COPY the rest" pattern.
 RUN --mount=type=cache,target=/root/.cache/uv \
     --mount=type=bind,source=uv.lock,target=uv.lock \
     --mount=type=bind,source=pyproject.toml,target=pyproject.toml \
     uv sync --locked --no-dev
-COPY main.py ./
+COPY app ./app
 
 FROM python:3.14-slim AS runtime
 WORKDIR /app
@@ -34,4 +34,4 @@ RUN useradd --create-home --uid 1000 appuser
 COPY --from=builder --chown=appuser:appuser /app /app
 USER appuser
 
-CMD ["python", "main.py"]
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
