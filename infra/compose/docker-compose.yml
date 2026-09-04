@@ -2,5 +2,32 @@ services:
   booking:
     build:
       context: ../../services/booking
+    # The app's only DB config is DATABASE_URL (a single connection string),
+    # supplied via .env -- not assembled from separate user/password/db vars.
+    env_file:
+      - .env
+    depends_on:
+      postgres:
+        condition: service_healthy
     ports:
       - "8000:8000"
+
+  postgres:
+    image: postgres:18-alpine
+    # These are the postgres image's own bootstrap requirements, not app
+    # config -- fixed local-dev values, kept in sync with DATABASE_URL in
+    # .env.example rather than sourced from it.
+    environment:
+      POSTGRES_USER: booking
+      POSTGRES_PASSWORD: booking
+      POSTGRES_DB: booking
+    volumes:
+      - booking_postgres_data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U booking"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  booking_postgres_data:
