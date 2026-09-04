@@ -1,0 +1,6 @@
+services:
+  booking:
+    build:
+      context: ../../services/booking
+    ports:
+      - "8000:8000"
