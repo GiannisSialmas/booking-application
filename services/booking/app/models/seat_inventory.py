@@ -9,7 +9,6 @@ from app.models.base import Base
 
 class SeatStatus(str, enum.Enum):
     AVAILABLE = "available"
-    HELD = "held"
     SOLD = "sold"
 
 
@@ -31,6 +30,14 @@ class SeatInventory(Base):
         Enum(SeatStatus, name="seat_status"), default=SeatStatus.AVAILABLE
     )
     price_cents: Mapped[int] = mapped_column(Integer)
+    # No "held" status value: a seat is currently held iff status='available'
+    # AND hold_expires_at is in the future -- computed at query time, never
+    # stored. This means an expired hold is immediately acquirable again
+    # without needing a sweep job to first write status back to 'available'.
+    # The hold-acquisition query (see #6) must check both status and this
+    # timestamp together; a sweep job (see #10) still exists, but only for
+    # side effects (marking the parent Booking expired, emitting an event),
+    # not for seat-availability correctness.
     hold_expires_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
     )
