@@ -23,6 +23,8 @@ RUN --mount=type=cache,target=/root/.cache/uv \
     --mount=type=bind,source=pyproject.toml,target=pyproject.toml \
     uv sync --locked --no-dev
 COPY app ./app
+COPY alembic.ini ./
+COPY alembic ./alembic
 
 FROM python:3.14-slim AS runtime
 WORKDIR /app
@@ -32,6 +34,11 @@ ENV PYTHONUNBUFFERED=1 \
 
 RUN useradd --create-home --uid 1000 appuser
 COPY --from=builder --chown=appuser:appuser /app /app
+COPY --chown=appuser:appuser docker-entrypoint.sh /usr/local/bin/
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 USER appuser
 
+# Applies migrations (alembic upgrade head) before handing off to CMD, so
+# `docker compose up` always starts against an up-to-date schema.
+ENTRYPOINT ["docker-entrypoint.sh"]
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
