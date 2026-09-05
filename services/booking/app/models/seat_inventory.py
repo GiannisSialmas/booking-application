@@ -14,6 +14,12 @@ class SeatStatus(str, enum.Enum):
 
 
 class SeatInventory(Base):
+    """One physical seat for one event, and its current availability.
+
+    This is the row that gets locked/updated during the hold-and-confirm
+    flow, since it's where "is this seat still available" is decided.
+    """
+
     __tablename__ = "seat_inventory"
 
     id: Mapped[int] = mapped_column(primary_key=True)

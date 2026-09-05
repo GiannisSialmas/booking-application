@@ -15,6 +15,13 @@ class BookingStatus(str, enum.Enum):
 
 
 class Booking(Base):
+    """One checkout attempt by a user, covering one or more seats.
+
+    This is the transaction header: it tracks the overall lifecycle
+    (held -> confirmed, or cancelled/expired) that BookingItem and
+    Payment rows hang off of.
+    """
+
     __tablename__ = "bookings"
 
     id: Mapped[int] = mapped_column(primary_key=True)

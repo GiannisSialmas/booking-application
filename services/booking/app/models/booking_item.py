@@ -5,6 +5,13 @@ from app.models.base import Base
 
 
 class BookingItem(Base):
+    """One seat within a booking, and the price actually charged for it.
+
+    A booking can cover multiple seats (e.g. a group buying tickets
+    together), so this is the join between a Booking and the specific
+    SeatInventory rows it includes.
+    """
+
     __tablename__ = "booking_items"
 
     id: Mapped[int] = mapped_column(primary_key=True)

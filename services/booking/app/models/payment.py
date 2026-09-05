@@ -15,6 +15,12 @@ class PaymentStatus(str, enum.Enum):
 
 
 class Payment(Base):
+    """A charge attempt for a booking (mock provider or Stripe test mode).
+
+    Sits alongside BookingItem, not underneath it -- one payment covers
+    the whole booking's total, regardless of how many seats are in it.
+    """
+
     __tablename__ = "payments"
 
     id: Mapped[int] = mapped_column(primary_key=True)
