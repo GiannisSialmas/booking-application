@@ -4,7 +4,7 @@ Manual, local-dev-only tool -- deliberately not wired into
 docker-entrypoint.sh alongside migrations. Idempotent: safe to run more
 than once, it skips if the sample event's seats already exist.
 
-Run via: docker compose exec booking python -m app.seed
+Run via: docker compose exec booking python -m scripts.seed
 """
 
 from app.core.database import SessionFactory

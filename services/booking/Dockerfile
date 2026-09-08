@@ -23,6 +23,7 @@ RUN --mount=type=cache,target=/root/.cache/uv \
     --mount=type=bind,source=pyproject.toml,target=pyproject.toml \
     uv sync --locked --no-dev
 COPY app ./app
+COPY scripts ./scripts
 COPY alembic.ini ./
 COPY alembic ./alembic
 
