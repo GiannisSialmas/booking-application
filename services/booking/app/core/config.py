@@ -10,6 +10,7 @@ class Settings(BaseSettings):
     # Default targets the local docker-compose postgres service; override via
     # the DATABASE_URL env var in any other environment.
     database_url: str = "postgresql+psycopg://booking:booking@localhost:5432/booking"
+    hold_duration_minutes: int = 10
 
 
 @lru_cache
