@@ -1,0 +1,39 @@
+name: catalog
+
+# Stub: catalog is still a hello-world. This just type-checks / builds the
+# TypeScript. It graduates to the booking pattern (Docker test-stage +
+# real tests against a live DB) once catalog has a Dockerfile and tests.
+
+on:
+  pull_request:
+    paths:
+      - "services/catalog/**"
+      - ".github/workflows/catalog.yml"
+  push:
+    branches: [main]
+    paths:
+      - "services/catalog/**"
+      - ".github/workflows/catalog.yml"
+
+concurrency:
+  group: catalog-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: services/catalog
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: services/catalog/package-lock.json
+      - run: npm ci
+      - run: npm run build

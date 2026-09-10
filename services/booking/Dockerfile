@@ -27,6 +27,21 @@ COPY scripts ./scripts
 COPY alembic.ini ./
 COPY alembic ./alembic
 
+# Test stage: branches off `builder`, so it shares the exact base image,
+# Python, and locked production deps already installed above. Adds the dev
+# dependency group and the tests -- neither of which ever reaches `runtime`,
+# since `runtime` only copies from `builder`. CI builds `--target test` and
+# `docker run`s it against a real Postgres; the shipped image is unaffected.
+FROM builder AS test
+ENV PATH="/app/.venv/bin:$PATH"
+RUN --mount=type=cache,target=/root/.cache/uv \
+    --mount=type=bind,source=uv.lock,target=uv.lock \
+    --mount=type=bind,source=pyproject.toml,target=pyproject.toml \
+    uv sync --locked
+COPY pyproject.toml ./
+COPY tests ./tests
+CMD ["pytest"]
+
 FROM python:3.14-slim AS runtime
 WORKDIR /app
 ENV PYTHONUNBUFFERED=1 \

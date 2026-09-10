@@ -1,0 +1,38 @@
+name: discovery
+
+# Stub: discovery is still a hello-world. This just vets / builds the Go
+# code. It graduates to the booking pattern (Docker test-stage + real
+# tests against a live datastore) once discovery has a Dockerfile and tests.
+
+on:
+  pull_request:
+    paths:
+      - "services/discovery/**"
+      - ".github/workflows/discovery.yml"
+  push:
+    branches: [main]
+    paths:
+      - "services/discovery/**"
+      - ".github/workflows/discovery.yml"
+
+concurrency:
+  group: discovery-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: services/discovery
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.27"
+          cache: false  # no go.sum yet -- no third-party deps
+      - run: go vet ./...
+      - run: go build ./...
