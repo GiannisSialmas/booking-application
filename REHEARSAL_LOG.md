@@ -51,7 +51,24 @@ not a finished spec.
 > are hello-world; realistically the first service gets real test CI (the
 > Docker test-stage from #22) and the others get a lint/build stub that
 > grows. Monorepo path filters so a change in one service doesn't run the
-> others' pipelines.
+> others' pipelines. **The same "do it early, not as an afterthought"
+> logic extends to pushing the image**, not just building/testing it: the
+> `lint → test → build → scan → push` pipeline from the original design
+> doc isn't done until an image actually lands somewhere. Wire up a push
+> step (gated on merge to main, never on PRs) in the same PR that adds
+> the pipeline, rather than treating "push" as a separate future task —
+> it's cheap to add once build+test exist, and it's the only way to
+> actually prove the artifact-publishing half of the pipeline works
+> before something depends on it.
+>
+> **GHCR now, ECR later, same shape:** pushed to `ghcr.io` using the
+> workflow's own built-in `GITHUB_TOKEN` (`permissions: packages: write`,
+> zero external setup) rather than ECR, because no AWS account or
+> credentials exist anywhere in this project. In the clean repo, default
+> to whichever registry needs the least setup to prove the pipeline
+> works end-to-end immediately, and swap in the real target registry
+> (ECR, once actual cloud infra exists) later — only the login step and
+> image URL change; build/tag/push-gated-on-main stays identical.
 
 **Workflow conventions adopted (apply from the start in the clean repo):**
 - Branch per issue (`issue-N-<slug>`), squash-merge PRs. Squash was a
@@ -590,18 +607,54 @@ in the clean repo rather than carrying the warning forward.
 > so nothing gets built twice. Adopt this from the start rather than
 > reaching for the simpler bare-runner version first.
 
+**Researched afterward: how this compares to real-world practice.** Pulled
+the actual CI workflows from `fastapi/full-stack-fastapi-template` (the
+official FastAPI reference implementation -- same stack as us). It does
+NOT use a Docker test-stage. Instead it splits into two separate
+workflows:
+- `test-backend.yml` -- brings up only Postgres via `docker compose up`,
+  then runs `uv run pytest` **directly on the runner** (with a coverage
+  threshold, `--fail-under=90`) -- i.e. exactly the "bare runner" approach
+  above, that we correctly identified as not testing the real artifact.
+- `test-docker-compose.yml` -- a separate, cheap workflow: builds the
+  *real* production images (no test stage, no dev deps), runs them, and
+  only `curl`s a health-check endpoint from outside. Proves the shipped
+  artifact boots and responds; doesn't re-run the test suite against it.
+
+So the widely-used reference implementation for this exact stack accepts
+the "tests run against code, not the artifact" gap deliberately, and
+covers artifact-fidelity separately and shallowly (a health-check curl)
+rather than deeply (the full suite, as our `test` stage does). Neither
+approach is strictly more correct -- it's thoroughness-against-the-real-
+artifact (this repo's choice) vs. speed-and-simplicity-with-artifact-
+fidelity-kept-cheap (FastAPI's choice). Worth deciding consciously in the
+clean repo rather than defaulting to either without knowing the tradeoff
+exists. A coverage threshold (`--fail-under=X`) is worth adopting either
+way -- we don't have one yet.
+
+Also worth knowing about, not adopted here: **Testcontainers** (a
+`testcontainers-python`-style library) is the other common pattern --
+instead of a `services:` block in the workflow, the test fixture itself
+spins up an ephemeral Postgres via the Docker socket. The appeal is
+symmetry: the same fixture provisions its own database whether you're
+running `pytest` locally or in CI, with no separate compose file or YAML
+service block to keep in sync. We didn't need it here since docker-compose
+already gives local dev a Postgres, but it's a real alternative worth
+knowing for a service that doesn't already have that.
+
 ---
 
 ## Open items as of this writing
 
-**Reordered plan (rehearsal):** the CI pipeline milestone jumps ahead of
-the rest of the booking feature work. Sequence from here:
+**Reordered plan (rehearsal):** the CI pipeline milestone jumped ahead of
+the rest of the booking feature work (see the Phase 0 lesson). Progress:
 
-1. Merge PR #21 (issue #6, `POST /bookings/hold`) — already open, ready.
-2. **CI pipeline milestone next**: #22 (Docker test-stage + a GitHub
-   Actions workflow that runs it and shows checks on PRs), then #16
-   (multi-head migration check) once there's a pipeline to add it to.
-   Also a lint/build stub for catalog and discovery.
+1. ~~Merge PR #21 (issue #6, `POST /bookings/hold`)~~ — done, merged.
+2. **CI pipeline milestone, in progress**: #22 -- Docker test-stage,
+   per-service workflows (booking real, catalog/discovery stubs), and
+   image push to GHCR gated on merge to main -- implemented on a branch,
+   not yet merged. #16 (multi-head migration check) still to come, now
+   that there's a pipeline to add it to.
 3. Then resume booking: #7 (`confirm`, carries the hold-revalidation
    requirement from Phase 7), #8 (`DELETE`), #9 (`GET /users/{id}/bookings`),
    #10 (hold-expiry sweep job), #11 (concurrency test), #12 (remaining
@@ -610,3 +663,5 @@ the rest of the booking feature work. Sequence from here:
 Other:
 - Catalog and Discovery services are still hello-world only.
 - The `httpx2` deprecation warning from Phase 9.
+- GHCR is a stand-in for ECR until real cloud infra exists (see the Phase
+  0 push-image lesson).
