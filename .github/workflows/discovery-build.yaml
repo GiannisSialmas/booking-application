@@ -8,7 +8,7 @@
 # GitHub Actions has no native workflow `description:` field; this comment
 # is the description.
 
-name: discovery
+name: discovery-build
 
 on:
   pull_request:

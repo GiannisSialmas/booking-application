@@ -9,7 +9,7 @@
 # GitHub Actions has no native workflow `description:` field; this comment
 # is the description.
 
-name: booking
+name: booking-build-and-test
 
 on:
   pull_request:

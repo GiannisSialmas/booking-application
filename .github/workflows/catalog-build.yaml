@@ -9,7 +9,7 @@
 # GitHub Actions has no native workflow `description:` field; this comment
 # is the description.
 
-name: catalog
+name: catalog-build
 
 on:
   pull_request:
