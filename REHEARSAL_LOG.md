@@ -31,10 +31,27 @@ not a finished spec.
   "everything needed to call this service done," not a complexity
   gradient. Skip the split entirely; one milestone per service from the
   start.
+- A `CI pipeline` milestone (platform work, not scoped to one service),
+  holding the multi-head-migration check (#16) and the Docker test-stage
+  approach (#22).
 - Created a GitHub Project ("Code the application") as the board.
 - `gh` needed extra OAuth scopes (`project`, `read:project`) beyond the
   default `repo` scope to manage Projects — granted via
   `gh auth refresh -s project,read:project`.
+
+> **Lesson (CI is an early milestone, not a late one):** in this rehearsal
+> CI was left until after most of the booking service was built, so
+> issues #1–#12 never got automated PR checks — the thing a real team
+> relies on. A real team stands up a "walking skeleton" pipeline (lint →
+> test → build, even trivial) before or alongside the first real feature,
+> so every change after that flows through it and the value compounds.
+> **In the clean repo, the CI pipeline milestone comes first** — right
+> after the repo scaffold and the first service's hello-world, before any
+> feature endpoints. "Test all services" is aspirational while services
+> are hello-world; realistically the first service gets real test CI (the
+> Docker test-stage from #22) and the others get a lint/build stub that
+> grows. Monorepo path filters so a change in one service doesn't run the
+> others' pipelines.
 
 **Workflow conventions adopted (apply from the start in the clean repo):**
 - Branch per issue (`issue-N-<slug>`), squash-merge PRs. Squash was a
@@ -577,12 +594,19 @@ in the clean repo rather than carrying the warning forward.
 
 ## Open items as of this writing
 
-- Issue #7 (`confirm`) not yet implemented — carries the hold-revalidation
-  requirement from Phase 7.
-- Issues #8-#12 (cancel, get-bookings, hold-expiry sweep job, concurrency
-  test, remaining test coverage) not yet started.
-- CI pipeline doesn't exist yet — tracked under its own "CI pipeline"
-  milestone (issue #16's actual fix, and issue #22's Docker test-stage
-  approach, both blocked on this).
+**Reordered plan (rehearsal):** the CI pipeline milestone jumps ahead of
+the rest of the booking feature work. Sequence from here:
+
+1. Merge PR #21 (issue #6, `POST /bookings/hold`) — already open, ready.
+2. **CI pipeline milestone next**: #22 (Docker test-stage + a GitHub
+   Actions workflow that runs it and shows checks on PRs), then #16
+   (multi-head migration check) once there's a pipeline to add it to.
+   Also a lint/build stub for catalog and discovery.
+3. Then resume booking: #7 (`confirm`, carries the hold-revalidation
+   requirement from Phase 7), #8 (`DELETE`), #9 (`GET /users/{id}/bookings`),
+   #10 (hold-expiry sweep job), #11 (concurrency test), #12 (remaining
+   test coverage), #17 (event-cancellation cascade), #18 (refunds).
+
+Other:
 - Catalog and Discovery services are still hello-world only.
 - The `httpx2` deprecation warning from Phase 9.
