@@ -20,11 +20,17 @@ not a finished spec.
 
 - Deleted all default repo labels. Create labels only when an actual need
   for one shows up, not preemptively.
-- Created milestones scoped by *complexity*, not just by service:
-  `Code basic bookings microservice` for the foundational flow, and a
-  separate `Code advanced bookings microservice` milestone added later for
-  scenarios that surfaced mid-work but were clearly beyond "basic" (event
-  cancellation cascade, refunds — see Phase 8).
+- One milestone per service (`Code bookings microservice`,
+  `Code catalog microservice`, `Code discovery microservice`) — everything
+  for that service goes in it, regardless of how foundational or advanced
+  the work is. **Reversed a bad idea, not kept:** for a while there was a
+  second "advanced" milestone per service, split off from a "basic" one,
+  meant to separate foundational work from scenarios discovered later
+  (event cancellation cascade, refunds — see Phase 8). That split added
+  organizational overhead without real benefit — a milestone's job is
+  "everything needed to call this service done," not a complexity
+  gradient. Skip the split entirely; one milestone per service from the
+  start.
 - Created a GitHub Project ("Code the application") as the board.
 - `gh` needed extra OAuth scopes (`project`, `read:project`) beyond the
   default `repo` scope to manage Projects — granted via
@@ -35,28 +41,42 @@ not a finished spec.
   deliberate choice for a solo-dev repo: one clean commit per issue on
   `main`, no merge-commit noise, no need for perfectly atomic in-branch
   commits before merging.
-- Every PR body ends with `ref: <issue-link>` — a plain cross-reference,
-  deliberately *not* a closing keyword (`Fixes #N`). This links the PR on
-  the issue's timeline without auto-closing it; closing an issue stays a
-  deliberate, explicit action taken after review.
+- No `ref: <issue-link>` line in PR bodies — dropped once
+  `addCloseIssueReferences` became the standard way to link a PR to its
+  issue (see the "Linked pull requests" note below). `ref:` was a
+  plain-text workaround for a real problem (get *some* visible link
+  without triggering auto-close); once the real closing-reference
+  connection is created directly via the mutation, a text line asserting
+  the same thing in the body is just redundant upkeep — the Development
+  panel and the project board's "Linked pull requests" field already show
+  it, on both the issue and the PR. The issue now auto-closes on merge
+  (the manual-close discipline this bullet originally described is
+  retired in favor of that).
 - PRs always get `--assignee @me`. Issues get assigned only once actually
   being worked (i.e. the moment they move to "In Progress"), never
   bulk-assigned across the whole backlog.
-- Move an item's board Status to **In Progress** the moment work starts on
-  it — issue and PR both. GitHub's default project workflows only
-  auto-move things to *Done* (on close/merge); nothing moves them to In
-  Progress automatically.
-- The "Pull request linked to issue" default project workflow auto-adds a
-  PR to the board once it references a tracked issue — keep this enabled;
-  it's wanted, not noise.
+- Move an issue's board Status to **In Progress** the moment work starts
+  on it. GitHub's default project workflows only auto-move things to
+  *Done* (on close/merge); nothing moves them to In Progress
+  automatically.
+- **PRs do not get their own board item at all — don't turn on the
+  "Pull request linked to issue" default project workflow, and don't
+  manually add a PR to the board either.** This was tried both ways in
+  this rehearsal: first enabled (PRs auto-added as separate rows), briefly
+  disabled, then re-enabled — and only dropped for good once the "Linked
+  pull requests" field (see below) reliably showed the same information
+  on the issue's own row. A separate PR row just duplicates that. The
+  issue is the single unit of tracking; its Status/assignee are what
+  matter, and its "Linked pull requests" field shows the PR without
+  needing a row of its own.
 - Scope-creep discipline: when something surfaces mid-issue that doesn't
   belong to that issue's stated scope, defer it into its own tracked issue
   (right milestone, right board status) rather than solving it inline or
   letting it get lost. Happened repeatedly: Postgres wiring pulled out of
   issue #1 into #3; the CI/Alembic-conflict concern spun into its own
   deferred issue (#16); the event-cancellation and refund scenarios spun
-  into the "advanced" milestone (#17, #18) instead of being bolted onto
-  existing issues.
+  into their own issues (#17, #18) in the same bookings milestone, instead
+  of being bolted onto existing issues.
 
 > **Lesson:** GitHub's "assignee" field only accepts real accounts with
 > repo access — there's no way to add an AI assistant as a literal
@@ -64,6 +84,55 @@ not a finished spec.
 > `--assignee @me` for the human, plus a `Co-Authored-By:` git trailer and
 > a body footer on PRs (issues get an equivalent footer note, since they
 > have no git-trailer mechanism).
+
+**"Linked pull requests" board field — how it's actually populated, and
+the workflow adopted going forward.** GitHub Projects has a native
+"Linked pull requests" field on issue rows. It is populated *only* by a
+genuine closing-reference connection — the same relationship a closing
+keyword (`Fixes #N`/`Closes #N`) creates. A plain cross-reference (what
+`ref:` produces) does not populate it, confirmed via the GraphQL API.
+Editing an **already-merged** PR's body to retroactively add a closing
+keyword does **not** retroactively create it either — the *keyword* path
+only works while a PR is still open.
+
+There is, however, a working API path that *does* work retroactively:
+the `addCloseIssueReferences` GraphQL mutation (missed on the first,
+narrower search of the mutation list — it doesn't contain "link" or
+"connect" in its name). It creates the exact same closing-reference
+connection a text keyword would, just without needing the keyword visibly
+in the PR description, and it works even on already-merged/closed pairs
+(confirmed by backfilling it onto issues #1-#5 against their respective
+already-merged PRs). There's a matching `removeCloseIssueReferences` to
+undo it. No mutation exists for a *non-closing* link — GitHub's only two
+paths to this connection are a closing keyword or this mutation, both are
+"closing" by name and by behavior, and the only true non-closing option is
+manually clicking "Link a pull request" in the issue's Development
+sidebar in the browser (no API equivalent for that one).
+
+**Decided workflow (adopt from the start in the clean repo):** run
+`addCloseIssueReferences` on every PR at the same moment it's opened —
+same category of routine manual step as setting Status/assignee to In
+Progress, not a one-off. This means every issue effectively becomes
+closing-keyword-linked from the start (accepting that the issue will
+auto-close whenever its linked PR merges, same as a text keyword would),
+rather than relying on `ref:` plus a separate manual `gh issue close`.
+This field populating reliably is also *why* PRs stopped getting their
+own board item (previous bullet) — once the issue's own row shows the
+linked PR, a duplicate row for the PR adds nothing.
+
+> **Bug found and repeatedly confirmed while testing this (5 times, once
+> per backfilled issue #1-#5):** creating this connection — whether by
+> editing a PR body to add/remove a keyword, or by calling
+> `addCloseIssueReferences` directly — flips the issue's board Status back
+> to "In Progress", **even when the issue is already `CLOSED` and stays
+> `CLOSED`** (confirmed via direct GraphQL query each time, not a caching
+> artifact). This looks like the "Pull request linked to issue" board
+> workflow re-firing on any new closing-reference connection, regardless
+> of the issue's real state. **Always re-check and fix Status back to
+> Done immediately after linking a PR to an already-closed issue** —
+> treat this as a guaranteed side effect of the mutation, not a maybe, and
+> build it into the routine from day one rather than discovering it by
+> accident.
 
 **Every commit and PR should carry attribution from the very first one:**
 a `Co-Authored-By: Claude <...>` trailer on every commit message, and a
@@ -391,20 +460,23 @@ there anyway.
 ## Phase 8 — Scenarios discovered but deliberately deferred
 
 While reasoning through the full booking lifecycle (hold → confirm →
-cancel → expire), several real scenarios surfaced that don't fit the
-"basic" milestone's scope. Rather than solving them inline or letting them
-get lost, each was written up and tracked separately:
+cancel → expire), several real scenarios surfaced that clearly weren't
+part of any issue already planned. Rather than solving them inline or
+letting them get lost, each was written up and tracked as its own issue,
+in the same bookings milestone as everything else (no separate
+"basic"/"advanced" split — see the Phase 0 note on why that split was
+tried and then reversed):
 
 - **Organizer cancels an entire event** — a saga/cross-cutting operation
   across every booking tied to that event (refund, release seats, notify),
   triggered by an async event from the Catalog service, not a direct API
   call. Depends on the event bus (Kafka/NATS) existing, which it doesn't
-  yet. → issue #17, "advanced" milestone.
+  yet. → issue #17.
 - **Refunds for already-confirmed bookings** — needs a
   `Payment.status -> REFUNDED` transition, a decision on the resulting
   `Booking` status, and a business decision on whether the seat goes back
   on sale (schema already supports the `REFUNDED` status value; no
-  endpoint exists). → issue #18, "advanced" milestone.
+  endpoint exists). → issue #18.
 - **CI check for conflicting/multiple-head Alembic migrations** — see the
   migration-ordering lesson in Phase 4. → issue #16, no milestone (it's
   platform/CI work, not a booking-service scenario), added to the board so
