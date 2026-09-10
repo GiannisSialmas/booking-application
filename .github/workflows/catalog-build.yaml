@@ -1,19 +1,26 @@
-name: catalog
+# Catalog service CI (stub).
+#
+# Catalog is still a hello-world, so this only type-checks / builds the
+# TypeScript. It graduates to the booking pattern (Dockerfile `test` stage
+# run against a live datastore) once catalog has a Dockerfile and real
+# tests -- at which point this file gets renamed to
+# catalog-build-and-test.yaml.
+#
+# GitHub Actions has no native workflow `description:` field; this comment
+# is the description.
 
-# Stub: catalog is still a hello-world. This just type-checks / builds the
-# TypeScript. It graduates to the booking pattern (Docker test-stage +
-# real tests against a live DB) once catalog has a Dockerfile and tests.
+name: catalog
 
 on:
   pull_request:
     paths:
       - "services/catalog/**"
-      - ".github/workflows/catalog.yml"
+      - ".github/workflows/catalog-build.yaml"
   push:
     branches: [main]
     paths:
       - "services/catalog/**"
-      - ".github/workflows/catalog.yml"
+      - ".github/workflows/catalog-build.yaml"
 
 concurrency:
   group: catalog-${{ github.ref }}

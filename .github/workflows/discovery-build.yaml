@@ -1,19 +1,25 @@
-name: discovery
+# Discovery service CI (stub).
+#
+# Discovery is still a hello-world, so this only vets / builds the Go code.
+# It graduates to the booking pattern (Dockerfile `test` stage run against
+# a live datastore) once discovery has a Dockerfile and real tests -- at
+# which point this file gets renamed to discovery-build-and-test.yaml.
+#
+# GitHub Actions has no native workflow `description:` field; this comment
+# is the description.
 
-# Stub: discovery is still a hello-world. This just vets / builds the Go
-# code. It graduates to the booking pattern (Docker test-stage + real
-# tests against a live datastore) once discovery has a Dockerfile and tests.
+name: discovery
 
 on:
   pull_request:
     paths:
       - "services/discovery/**"
-      - ".github/workflows/discovery.yml"
+      - ".github/workflows/discovery-build.yaml"
   push:
     branches: [main]
     paths:
       - "services/discovery/**"
-      - ".github/workflows/discovery.yml"
+      - ".github/workflows/discovery-build.yaml"
 
 concurrency:
   group: discovery-${{ github.ref }}

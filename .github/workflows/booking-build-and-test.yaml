@@ -1,15 +1,26 @@
+# Booking service CI.
+#
+# Builds the Dockerfile's `test` stage and runs it (Alembic migrations,
+# then pytest) against a real Postgres service container -- so the tests
+# execute inside the same base image / Python / locked dependencies as the
+# shipped artifact, not against raw source on the runner. Then builds the
+# `runtime` stage to prove the deployable image builds. Nothing is pushed.
+#
+# GitHub Actions has no native workflow `description:` field; this comment
+# is the description.
+
 name: booking
 
 on:
   pull_request:
     paths:
       - "services/booking/**"
-      - ".github/workflows/booking.yml"
+      - ".github/workflows/booking-build-and-test.yaml"
   push:
     branches: [main]
     paths:
       - "services/booking/**"
-      - ".github/workflows/booking.yml"
+      - ".github/workflows/booking-build-and-test.yaml"
 
 concurrency:
   group: booking-${{ github.ref }}
@@ -19,7 +30,7 @@ permissions:
   contents: read
 
 jobs:
-  test:
+  build-and-test:
     runs-on: ubuntu-latest
 
     services:
