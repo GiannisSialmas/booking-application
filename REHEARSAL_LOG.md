@@ -550,6 +550,29 @@ instead`) — tests pass fine either way, but this reflects an ecosystem
 change after this project's working knowledge. Worth resolving properly
 in the clean repo rather than carrying the warning forward.
 
+> **Lesson (correcting an incomplete first answer — CI should test the
+> shipped artifact, not just the code):** the initial plan for running
+> these tests in CI was: install dependencies directly on the bare CI
+> runner (`uv sync`, including dev deps) and `uv run pytest` against a
+> Postgres service container. That's not wrong exactly, but it was
+> pushed back on correctly: it only proves the *code* works, on whatever
+> environment the CI runner happens to be — not the actual Docker image
+> that gets shipped (different base OS, never exercises the non-root
+> runtime user, never runs `docker-entrypoint.sh`, no proof the image
+> even builds). The corrected approach (tracked as issue #22, "CI
+> pipeline" milestone): add a separate, non-final `test` build stage that
+> branches off the same `builder` stage the production `runtime` image
+> uses — same base OS, same Python, same locked dependencies already
+> installed at that point — and only that stage adds dev deps + `tests/`.
+> CI runs `docker build --target test` then `docker run` against it
+> (reachable to a real Postgres service container, since this is a normal
+> step, not a `docker build` sandbox), and only builds/pushes the
+> `runtime` target if that passes. This tests the real artifact's
+> foundation without ever shipping dev dependencies in what's actually
+> deployed, and shares Docker's layer cache between `test` and `runtime`
+> so nothing gets built twice. Adopt this from the start rather than
+> reaching for the simpler bare-runner version first.
+
 ---
 
 ## Open items as of this writing
@@ -558,6 +581,8 @@ in the clean repo rather than carrying the warning forward.
   requirement from Phase 7.
 - Issues #8-#12 (cancel, get-bookings, hold-expiry sweep job, concurrency
   test, remaining test coverage) not yet started.
-- CI pipeline doesn't exist yet (blocks issue #16's actual fix).
+- CI pipeline doesn't exist yet — tracked under its own "CI pipeline"
+  milestone (issue #16's actual fix, and issue #22's Docker test-stage
+  approach, both blocked on this).
 - Catalog and Discovery services are still hello-world only.
 - The `httpx2` deprecation warning from Phase 9.
