@@ -4,7 +4,14 @@
 # then pytest) against a real Postgres service container -- so the tests
 # execute inside the same base image / Python / locked dependencies as the
 # shipped artifact, not against raw source on the runner. Then builds the
-# `runtime` stage to prove the deployable image builds. Nothing is pushed.
+# `runtime` stage to prove the deployable image builds, and -- on an actual
+# merge to main, not on PRs -- pushes it to GHCR.
+#
+# GHCR, not ECR: this is what's actually reachable right now with zero
+# external setup (uses the workflow's own built-in GITHUB_TOKEN, no AWS
+# account/credentials exist anywhere in this project yet). Swap the
+# registry/login step for ECR once real cloud infra exists -- everything
+# else here (build, tag, push gated on push-to-main) stays the same shape.
 #
 # GitHub Actions has no native workflow `description:` field; this comment
 # is the description.
@@ -28,6 +35,10 @@ concurrency:
 
 permissions:
   contents: read
+  packages: write
+
+env:
+  IMAGE: ghcr.io/giannissialmas/booking-application/booking
 
 jobs:
   build-and-test:
@@ -75,11 +86,23 @@ jobs:
             booking:test \
             sh -c "alembic upgrade head && pytest"
 
-      # Prove the shipped image builds. Not pushed anywhere yet.
-      - name: Build runtime image
+      # Only log in / push on an actual merge to main. PRs still build the
+      # runtime image below (proving it builds) but never publish it.
+      - name: Log in to GHCR
+        if: github.event_name == 'push'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build runtime image (push on main only)
         uses: docker/build-push-action@v6
         with:
           context: services/booking
           target: runtime
-          tags: booking:runtime
+          push: ${{ github.event_name == 'push' }}
+          tags: |
+            ${{ env.IMAGE }}:latest
+            ${{ env.IMAGE }}:${{ github.sha }}
           cache-from: type=gha,scope=booking
